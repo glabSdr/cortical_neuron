@@ -1,5 +1,6 @@
 [package]
 name = "cortical_neuron"
+description = "Neuron model. Part of cortex"
 version = "0.0.1"
 edition = "2024"
 authors = ["Glab Strizhkov"]
