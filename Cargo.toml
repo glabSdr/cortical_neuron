@@ -2,6 +2,8 @@
 name = "cortical_neuron"
 version = "0.0.1"
 edition = "2024"
+authors = ["Glab Strizhkov"]
+license = "GNU GPLv3"
 
 [dependencies]
 serde = { version = "1.0.229", features = ["derive"] }
