@@ -4,7 +4,7 @@ description = "Neuron model. Part of cortex"
 version = "0.0.1"
 edition = "2024"
 authors = ["Glab Strizhkov"]
-license = "GNU GPLv3"
+license = "GPL-2.0-or-later"
 
 [dependencies]
 serde = { version = "1.0.229", features = ["derive"] }
