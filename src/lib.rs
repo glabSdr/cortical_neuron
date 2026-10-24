@@ -1,11 +1,62 @@
+//Yes, each modulator affects specific gates, but each in its own way.
+// Norepinephrine → glut_gate and gaba_gate (both)
+//
+// NE lowers both input thresholds. The neuron starts "hearing" more — both glutamate and GABA. Seems counterproductive: why hear more inhibition? But the effect is contrast enhancement. Without NE: strong signal = 100, noise = 30, gate = 40. The signal passes (100 > 40), noise is cut off (30 < 40). With NE: gate drops to 15. The signal passes (100 > 15), noise also passes (30 > 15). But the difference between 100 and 30 is now visible at full scale, not clipped at the level of 40. The neuron gets a more precise picture of the input distribution. Strong stays strong, weak is seen as weak, not clipped to zero.
+//
+// NE → glut_gate -= amount
+// NE → gaba_gate -= amount
+// // "hearing everything louder"
+//
+
+//
+// Acetylcholine → glut_gate (selectively)
+//
+// ACh lowers glut_gate not on all neurons, but only on those serving the current focus of attention. For the rest it changes nothing, or even raises it. This is a spatial filter: "these inputs matter, the rest don't."
+//
+// ACh → glut_gate -= amount (on targets)
+// ACh → glut_gate += amount (on non-targets)  // optional
+// // "hearing only this"
+//
+// Serotonin → out_gate (globally, in both directions)
+//
+// Serotonin is more complex than the rest because through different receptors it does the opposite. But simplified to one effect: serotonin raises out_gate globally. The currently active process is already above threshold — it keeps running. New stimuli that used to be slightly above threshold are now below it — they can't interrupt the current process.
+//
+// 5-HT (1A) → out_gate += amount  // "don't get distracted, hold the current process"
+// 5-HT (2A) → out_gate -= amount  // "break the current pattern" (psychedelics)
+//
+// Opioid peptides — two separate synaptic channels:
+//
+// Enkephalin (μ-ligand): local interneurons release into synapse
+//   μ on VTA GABA interneuron → GABA↓ → DA disinhibition (DA↑)
+//   μ on LC → out_gate↑ → NE↓ (analgesia, calm)
+//   μ on BLA → out_gate↑ → anxiolysis
+//
+// Dynorphin (κ-ligand): MSN striatum synthesizes via DA→D1→CREB→prodynorphin
+//   κ on VTA DA neuron → out_gate↑ → DA↓ (dysphoria, antireward)
+//   κ on LC → out_gate↓ → NE↑ (stress, anxiety)
+//   κ on BLA → out_gate↓ → anxiogenic
+//
+// Both are synaptic (not volume transmission), modeled like glut/gaba through Shot
+//
+// Summary
+// Modulator	Where it hits	Direction	Effect in one word
+// Norepinephrine	glut_gate, gaba_gate	↓ both	Louder
+// Dopamine (D1)	out_gate	↓	Easier
+// Dopamine (D2)	out_gate	↑	Harder
+// Acetylcholine	glut_gate (selectively)	↓ on targets	Focus
+// Serotonin (1A)	out_gate	↑	More stable
+// Serotonin (2A)	out_gate	↓	More flexible
+// Enkephalin (μ)	GABA/out_gate	↑	Pleasure / calm
+// Dynorphin (κ)	out_gate	↑ on VTA, ↓ on LC/BLA	Brake / stress
+//
+// Six modulators, three gates, ten operations.
+
 use serde::{Serialize, Deserialize};
 
 mod compute;
 mod actualize;
 mod manage;
 
-
-pub type TRANSMISSION = (usize, u16, u16, u16, u16, u16, u16, u16);
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum NeuronType {
@@ -193,6 +244,27 @@ pub struct CorticalNeuron {
     /// Default true — biologically, phasic DA gates synaptic plasticity.
     #[serde(default = "default_stdp_da_gated")]
     pub stdp_da_gated: bool,
+
+    // ── Serotonin plasticity modulation ──
+
+    /// Cached 5-HT1A receptor activation from last serotonin_apply().
+    /// Used by phase_9 STDP: 5-HT1A suppresses plasticity (learning rate ↓).
+    /// Not serialized — runtime only.
+    #[serde(default)]
+    pub ht1a_cached: u16,
+
+    /// Cached 5-HT2A receptor activation from last serotonin_apply().
+    /// Used by phase_9 STDP: 5-HT2A enhances plasticity (learning rate ↑).
+    /// Not serialized — runtime only.
+    #[serde(default)]
+    pub ht2a_cached: u16,
+
+    /// Whether serotonin modulates STDP learning rate on this neuron.
+    /// true = 5-HT1A suppresses, 5-HT2A enhances plasticity.
+    /// false = STDP rates are constant regardless of serotonin.
+    /// Default true — biologically, serotonin modulates synaptic plasticity globally.
+    #[serde(default = "default_stdp_ht_modulated")]
+    pub stdp_ht_modulated: bool,
 }
 
 fn default_recordable() -> bool { true }
@@ -202,3 +274,4 @@ fn default_ltd_rate() -> u16 { 3 }
 fn default_weight_min() -> u16 { 10 }
 fn default_weight_max() -> u16 { 255 }
 fn default_stdp_da_gated() -> bool { true }
+fn default_stdp_ht_modulated() -> bool { true }
